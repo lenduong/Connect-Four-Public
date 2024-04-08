@@ -19,7 +19,6 @@ bool checkConnectX(
   //  where to start checking.
   // The function will then check the start and end to see if it can
   //  put a piece there and update the x and y coordinates
-
   const int NDIRS = 4;
   const int xDirDelta[NDIRS] = { 0, +1, -1, +1};
   const int yDirDelta[NDIRS] = {+1,  0, +1, +1};
@@ -46,7 +45,6 @@ bool checkConnectX(
         // Check if row and column are within range
         // Otherwise it'll give segmentation fault
         if (column<0 || column>=xdim || row<0 || row>=ydim ){break;}
-
         if (board[row][column] != testPlayer){
           if(dir==-1){
             // If reaches here, there has not been a connect 3
@@ -89,16 +87,18 @@ bool checkConnectX(
       // If there's not a way then check the next axis
       // Check if column is within range
       // We don't need to check if row is in range because findYValue() ensure that
-      if (xStart<xdim && xStart>=0 && findYValue(board,ydim,xStart)==yStart){
-        // We'll default to put the piece at the start first if possible
-        // We'll only put it there if the there is a way to block it
-        // i.e. if there's a blank at start and everything bellow it is filled
-        board[yStart][xStart] = currentPlayer;
-        *y = yStart;
-        *x = xStart;
-        return true;
+      if (xStart<xdim && xStart>=0 && findYValue(board,ydim,xStart)==yStart && yStart>=0 && yStart<ydim){
+          // The last parameter checks for if there's an BLANK below the intended coordinate
+          // We'll default to put the piece at the start first if possible
+          // We'll only put it there if the there is a way to block it
+          // i.e. if there's a blank at start and everything bellow it is filled
+          board[yStart][xStart] = currentPlayer;
+          *y = yStart;
+          *x = xStart;
+          return true;
+        
       }
-      else if (xEnd<xdim && xEnd>=0 && findYValue(board, ydim, xEnd) == yEnd){
+      else if (xEnd<xdim && xEnd>=0 && findYValue(board, ydim, xEnd) == yEnd && yEnd>=0 && yEnd<ydim){
         // If we can't put the piece at the start then we will try the end
         board[yEnd][xEnd] = currentPlayer;
         *y = yEnd;
@@ -107,7 +107,6 @@ bool checkConnectX(
       }
     }
   }
-
   // If code reaches here, there's no connect X
   return false;
 }
@@ -158,13 +157,15 @@ bool connect2Plus1(
     // Otherwise it'll give segmentation fault
     // If not within range then return false and AI will move on
     for (int check=1; check<4; check++){
-      if ((sx+check*col)<0 || (sx+check*col)>=xdim || (sy+check*row)<0 || (sy+check*row)>=ydim)
+      if ((sx+check*col)<0 || (sx+check*col)>=xdim || (sy+check*row)<0 || (sy+check*row)>=ydim||((sy+check*row)-1)<0 ||((sy+check*row)-1)>=ydim)
       {return false;}
     }
 
     // Start searching for the winning pattern
     if (board[sy+row][sx+col] == testPlayer && board[sy+2*row][sx+2*col] == BLANK && 
-    board[sy+3*row][sx+3*col] == testPlayer){
+    board[sy+3*row][sx+3*col] == testPlayer && findYValue(board, ydim, (sx+2*col)) == (sy+2*row)){
+      // The last parameter checks for if there's an BLANK below the intended coordinate
+      //  if there is then there's no potential to win or lose
       // Pattern: R R _ R
       // If true, set the current player's piece where the blank is
       board[sy+2*row][sx+2*col] = currentPlayer;
@@ -173,7 +174,7 @@ bool connect2Plus1(
       return true;
     } 
     else if (board[sy+row][sx+col] == BLANK && board[sy+2*row][sx+2*col] == testPlayer 
-    && board[sy+3*row][sx+3*col] == testPlayer) {
+    && board[sy+3*row][sx+3*col] == testPlayer && findYValue(board, ydim, (sx+col)) == (sy+row)) {
       // Pattern: R _ R R 
       board[sy+row][sx+col] = currentPlayer;
       *x = sx+col;
@@ -196,7 +197,41 @@ bool getUserAIInput(
 {
   BoardValue player = playerToValue[currentPlayer];
   BoardValue opponent = playerToValue[1-currentPlayer];
-  // Check if the current player can win
+  // Check if the AI can win
+  // AI will first try to win by checking if it has a "R _ R R" or
+  //  "R R _ R" pattern 
+  // If it can win, it'll play its piece in the BLANK and win the game
+  for (int row=0; row<ydim; row++){
+    for (int column=0; column<xdim; column++){
+      // If blank, do nothing
+      //cout << endl << "Check AI RR_R" << endl;
+      if(board[row][column]==player){
+        if(connect2Plus1(board, player,player, ydim, xdim, row, column, y, x)){
+          //cout << endl << "Check AI RR_R" << endl;
+          return false;
+        }
+      }
+    }
+  }
+  
+  // If the above doesn't occur, AI will check again if it has a connect 3
+  // Connect 3 means it can win, so it will try to play with this
+  // If there's no connect 3, there's no imediate win and it should then block
+  for (int row=0; row<ydim; row++){
+    for (int column=0; column<xdim; column++){
+      // If blank, do nothing
+      //cout << endl << "Check AI connect 3" << endl;
+      if(board[row][column]==player){
+        if(checkConnectX(board, player, player, ydim, xdim, row, column, y, x, 3)){
+          //                    ^^^^^^ the player to check for winning
+          //cout << endl << "Check AI connect 3" << endl;
+          return false;
+        }
+      }
+    }
+  }
+
+  // Check if the oponent can win
   // Check for connect 3
   // We will create a separate function for this check
   // Go through each coordinate and check if there's a connect 3
@@ -204,8 +239,11 @@ bool getUserAIInput(
   for (int row=0; row<ydim; row++){
     for (int column=0; column<xdim; column++){
       // If blank, do nothing
+      //cout << endl << "Check opponent 3" << endl;
       if(board[row][column]==opponent){
+       // cout << endl << "Check opponent 3 " << row << " " << column<< endl;
         if(checkConnectX(board, opponent,player, ydim, xdim, row, column, y, x, 3)){
+          //cout << endl << "Check opponent 3" << endl;
           return false;
         }
       }
@@ -216,38 +254,27 @@ bool getUserAIInput(
   for (int row=0; row<ydim; row++){
     for (int column=0; column<xdim; column++){
       // If blank, do nothing
+      //cout << endl << "Check opponent RR_R" <<endl;
       if(board[row][column]==opponent){
         if(connect2Plus1(board, opponent,player, ydim, xdim, row, column, y, x)){
+          //cout << endl << "Check opponent RR_R" <<endl;
           return false;
         }
       }
     }
   }
 
-  // If the opponent can't win, AI will try to win by checking if it has a "R _ R R" or
-  //  "R R _ R" pattern 
-  // If so, it'll play its piece in the BLANK and win the game
-  for (int row=0; row<ydim; row++){
-    for (int column=0; column<xdim; column++){
-      // If blank, do nothing
-      if(board[row][column]==player){
-        if(connect2Plus1(board, player,player, ydim, xdim, row, column, y, x)){
-          return false;
-        }
-      }
-    }
-  }
-  
-  // If none of the above occurs, AI will pick a location based on whether or not it has connect X
-  // Connect 3 means it can win, so it will try to play with this first
-  // If there's no connect 3, it will try connect 2, then connect 1
+  // If none of the above occurs, AI will pick a location based on whether or not it has the most connect X
+  // We've already checked for connect 3, so we'll start checking for connect 2, then connect 1
   // Using the same method for blocking the other player, we check if AI can win at start or end
-  for (int size=3; size>0; size--){
+  for (int size=2; size>0; size--){
     for (int row=0; row<ydim; row++){
       for (int column=0; column<xdim; column++){
         // If blank, do nothing
+        //cout << endl << "Check AI connect " << size << endl;
         if(board[row][column]==player){
           if(checkConnectX(board, player, player, ydim, xdim, row, column, y, x, size)){
+            //cout << endl << "Check AI connect " << size << endl;
             return false;
           }
         }
@@ -263,10 +290,12 @@ bool getUserAIInput(
   for (int row=0; row<ydim; row++){
     for (int column=0; column<xdim; column++){
       // If blank, put a piece there
+      //cout << endl <<"Print Random" << endl;
       if(board[row][column]==BLANK){
         board[row][column] = player;
         *x = column;
         *y = row;
+        //cout << endl <<"Print Random" << endl;
         return false;
       }
     }

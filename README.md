@@ -1,5 +1,5 @@
 # Connect-Four: AI MODE
-This was a class project that's designed to play Connect-Four, the AI mode allows player to play against my AI algorithm, the player will always go first. 
+This was a class project that's designed to play Connect-Four, the AI mode allows player to play against my AI algorithm, the player will always go first. Red is the human player, yellow is the AI. 
 
 # DEMO
 A demo video of the AI algorithm has been upploaded under file!

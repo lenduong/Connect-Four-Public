@@ -1,116 +1,3 @@
-//---------Additional Function for getUserAIInput()----------
-bool checkConnectX(
-  BoardValue** board, 
-  BoardValue testPlayer/*player that's being checked for connect X*/,
-  BoardValue currentPlayer,
-  int ydim, int xdim, 
-  int sy, int sx,
-  int* y, int* x, 
-  int size)
-{
-  // ***(FUNCTION DESCRIPTION)*** 
-  // Check if there's any X connected pieces ("connect X" for short)
-  // The function will mainly be used to check for 2 or 3 connected pieces
-  // The variable "size" will tell the function how many pieces to check for
-  // We can reuse some of hasWon() except check until X
-  // The function will calculate a starting and ending
-  //  coordinate to where the connect X start and end (the points
-  //  don't include the connect X pieces) this is so the AI know
-  //  where to start checking.
-  // The function will then check the start and end to see if it can
-  //  put a piece there and update the x and y coordinates
-  const int NDIRS = 4;
-  const int xDirDelta[NDIRS] = { 0, +1, -1, +1};
-  const int yDirDelta[NDIRS] = {+1,  0, +1, +1};
-  int currentPCount;
-  
-  // We go through every axis until there's a connect X
-  //  and a piece can be placed at the start or end
-  for (int axis=0; axis<4; axis++){
-    // Check vert, hor, diags 
-    // Reset count every time axis change
-    currentPCount = 0; 
-    int xStart=0, xEnd=0, yStart=0, yEnd=0;
-
-    for (int dir=-1; dir<2; dir+=2){
-      // Check 2 directions (e.g. forward then backward)
-      // First time will subtract xDirDelta and yDirDelta
-      // Second time will add them
-      if (currentPCount == size-1){break;} // stop if X are connected
-
-      for(int check=1; check<size; check++){
-        // Check up to 2 pieces because the original one for sure matches
-        int row = sy+(dir*yDirDelta[axis]*check);
-        int column = sx+(dir*xDirDelta[axis]*check);
-        // Check if row and column are within range
-        // Otherwise it'll give segmentation fault
-        if (column<0 || column>=xdim || row<0 || row>=ydim ){break;}
-        if (board[row][column] != testPlayer){
-          if(dir==-1){
-            // If reaches here, there has not been a connect 3
-            // But there isn't the player's piece here either
-            // Make the last point our start and add end later
-            xStart = column;
-            yStart = row;
-          }
-          break;
-        } 
-        else {currentPCount++;}
-        
-        if (currentPCount == size-1){
-          
-          if(dir==-1){
-            // If reach here that means there's a connect 3 in the
-            //  first direction and we use the current point as start
-            //  and the original point as end
-            xStart = sx+(dir*xDirDelta[axis]*(check+1));
-            yStart = sy+(dir*yDirDelta[axis]*(check+1));
-            xEnd = sx+(xDirDelta[axis]);
-            yEnd = sy+(yDirDelta[axis]);
-          }
-          else{
-            // If reaches here that means the 2nd direction found a 
-            //  connect 3, which means the 1st direction output a start
-            //  already
-            xEnd = sx+(dir*xDirDelta[axis]*(check+1));
-            yEnd = sy+(dir*yDirDelta[axis]*(check+1));
-          }
-          break;
-        }
-      }
-    }
-    // Check if X pieces are connected in the axis before resetting count
-    // If they are and the AI is able to place the piece then it will do that and quit the function
-    if (currentPCount == size-1){
-      // If there's connect 3 in this axis, we look at if there's a way 
-      //  to put a piece at the start or end
-      // If there's not a way then check the next axis
-      // Check if column is within range
-      // We don't need to check if row is in range because findYValue() ensure that
-      if (xStart<xdim && xStart>=0 && findYValue(board,ydim,xStart)==yStart && yStart>=0 && yStart<ydim){
-          // The last parameter checks for if there's an BLANK below the intended coordinate
-          // We'll default to put the piece at the start first if possible
-          // We'll only put it there if the there is a way to block it
-          // i.e. if there's a blank at start and everything bellow it is filled
-          board[yStart][xStart] = currentPlayer;
-          *y = yStart;
-          *x = xStart;
-          return true;
-        
-      }
-      else if (xEnd<xdim && xEnd>=0 && findYValue(board, ydim, xEnd) == yEnd && yEnd>=0 && yEnd<ydim){
-        // If we can't put the piece at the start then we will try the end
-        board[yEnd][xEnd] = currentPlayer;
-        *y = yEnd;
-        *x = xEnd;
-        return true;
-      }
-    }
-  }
-  // If code reaches here, there's no connect X
-  return false;
-}
-
 //----------- Additional function for AI ----------------------------
 bool connect2Plus1(
   BoardValue** board, 
@@ -120,24 +7,25 @@ bool connect2Plus1(
   int sy, int sx,
   int* y, int* x)
 {
-    // *********** Function Description**********
-    // This function checks for connect 2, space, then another piece. We will refer
-    //  to this pattern as the winning pattern in this function
-    // Example: R R _ R 
-    // Also checks for 1piece, space, and a connect 2
-    // Example: R _ R R
-    // The previous function wouldn't be able to recognize this to block/ play it
-    // This function will be very similar to checkConnectX
-    // NOTE: This function doesn't work as well as it should and requires some tweaking
-    //  however, it works most of the time. 
+  // *********** Function Description**********
+  // This function checks for connect 2, space, then another piece. We will refer
+  //  to this pattern as the winning pattern in this function
+  // Example: R R _ R 
+  // Also checks for 1piece, space, and a connect 2
+  // Example: R _ R R
+  // The previous function wouldn't be able to recognize this to block/ play it
+  // This function will be very similar to checkConnectX
+  // NOTE: This function doesn't work as well as it should and requires some tweaking
+  //  however, it works most of the time. 
 
   const int NDIRS = 4;
   const int xDirDelta[NDIRS] = { 0, +1, -1, +1};
   const int yDirDelta[NDIRS] = {+1,  0, +1, +1};
     
-    // We go through every axis until there's a connect X
-    //  and a piece can be placed at the start or end
+  // We go through every axis until there's a connect X
+  //  and a piece can be placed at the start or end
   for (int axis=0; axis<4; axis++){
+    bool flag = 0;
     // Check vert, hor, diags 
     // Axis 0: vertical
     // Axis 1: horizontal
@@ -157,9 +45,10 @@ bool connect2Plus1(
     // Otherwise it'll give segmentation fault
     // If not within range then return false and AI will move on
     for (int check=1; check<4; check++){
-      if ((sx+check*col)<0 || (sx+check*col)>=xdim || (sy+check*row)<0 || (sy+check*row)>=ydim||((sy+check*row)-1)<0 ||((sy+check*row)-1)>=ydim)
-      {return false;}
+      if ((sx+check*col)<0 || (sx+check*col)>=xdim || (sy+check*row)<0 || (sy+check*row)>=ydim)
+      {flag = true; break;}
     }
+    if (flag) {continue;}
 
     // Start searching for the winning pattern
     if (board[sy+row][sx+col] == testPlayer && board[sy+2*row][sx+2*col] == BLANK && 
@@ -182,7 +71,6 @@ bool connect2Plus1(
       return true;
     }
   }
-
   // If code reaches here, there's no winning pattern
   return false;
 }
